@@ -1,6 +1,8 @@
 # Wakeonelan
 This is a simple python alpine based docker image with the wakeonlan tool installed.
 
+[![Build Status](https://travis-ci.org/hacker-h/wakeonlan.svg?branch=master)](https://travis-ci.org/hacker-h/wakeonlan)
+
 # Usage
 ```
 docker run hackerh/wakeonlan wakeonlan -i <BROADCAST_IP> -p <PORT> <MAC_ADDRESS>
