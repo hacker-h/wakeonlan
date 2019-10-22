@@ -1,5 +1,10 @@
 dist: xenial
 
+addons:
+  apt:
+    packages:
+      - docker-ce
+
 jobs:
   include:
     - stage: build
@@ -9,7 +14,37 @@ jobs:
       services:
         - docker
       script:
-      - docker build -t hackerh/wakeonlan:latest .
+      - echo "${DOCKER_PASSWORD}" | docker login -u "${DOCKER_USERNAME}" --password-stdin
+      - docker run --privileged linuxkit/binfmt:v0.6
+      - docker run -d --privileged -p 1337:1337 --name buildkit moby/buildkit:latest --addr tcp://0.0.0.0:1337 --oci-worker-platform linux/amd64 --oci-worker-platform linux/arm/v7
+      - docker cp buildkit:/usr/bin/buildctl .
+      - export BUILDKIT_HOST=tcp://0.0.0.0:1337
+      - |
+        ./buildctl build --frontend dockerfile.v0 \
+        --frontend-opt platform=linux/arm/v7 \
+        --frontend-opt filename=./Dockerfile.armv7 \
+        --exporter image \
+        --exporter-opt name=docker.io/hackerh/wakeonlan:latest-armv7 \
+        --exporter-opt push=false \
+        --local dockerfile=. \
+        --local context=.
+      - |
+        ./buildctl build --frontend dockerfile.v0 \
+        --frontend-opt platform=linux/amd64 \
+        --frontend-opt filename=./Dockerfile.amd64 \
+        --exporter image \
+        --exporter-opt name=docker.io/hackerh/wakeonlan:latest-amd64 \
+        --exporter-opt push=false \
+        --local dockerfile=. \
+        --local context=.
+      - export DOCKER_CLI_EXPERIMENTAL=enabled
+      - |
+        docker manifest create hackerh/wakeonlan:latest \
+        hackerh/wakeonlan:latest-amd64 \
+        hackerh/wakeonlan:latest-armv7
+      - docker manifest annotate hackerh/wakeonlan:latest hackerh/wakeonlan:latest-amd64 --arch amd64
+      - docker manifest annotate hackerh/wakeonlan:latest hackerh/wakeonlan:latest-armv7 --arch arm --variant v7
+      - docker manifest push hackerh/wakeonlan:latest
 
     - stage: build
       name: "push latest image"
@@ -18,9 +53,37 @@ jobs:
       services:
         - docker
       script:
-      - docker build -t hackerh/wakeonlan:latest .
       - echo "${DOCKER_PASSWORD}" | docker login -u "${DOCKER_USERNAME}" --password-stdin
-      - docker push hackerh/wakeonlan:latest
+      - docker run --privileged linuxkit/binfmt:v0.6
+      - docker run -d --privileged -p 1337:1337 --name buildkit moby/buildkit:latest --addr tcp://0.0.0.0:1337 --oci-worker-platform linux/amd64 --oci-worker-platform linux/arm/v7
+      - docker cp buildkit:/usr/bin/buildctl .
+      - export BUILDKIT_HOST=tcp://0.0.0.0:1337
+      - |
+        ./buildctl build --frontend dockerfile.v0 \
+        --frontend-opt platform=linux/arm/v7 \
+        --frontend-opt filename=./Dockerfile.armv7 \
+        --exporter image \
+        --exporter-opt name=docker.io/hackerh/wakeonlan:latest-armv7 \
+        --exporter-opt push=false \
+        --local dockerfile=. \
+        --local context=.
+      - |
+        ./buildctl build --frontend dockerfile.v0 \
+        --frontend-opt platform=linux/amd64 \
+        --frontend-opt filename=./Dockerfile.amd64 \
+        --exporter image \
+        --exporter-opt name=docker.io/hackerh/wakeonlan:latest-amd64 \
+        --exporter-opt push=true \
+        --local dockerfile=. \
+        --local context=.
+      - export DOCKER_CLI_EXPERIMENTAL=enabled
+      - |
+        docker manifest create hackerh/wakeonlan:latest \
+        hackerh/wakeonlan:latest-amd64 \
+        hackerh/wakeonlan:latest-armv7
+      - docker manifest annotate hackerh/wakeonlan:latest hackerh/wakeonlan:latest-amd64 --arch amd64
+      - docker manifest annotate hackerh/wakeonlan:latest hackerh/wakeonlan:latest-armv7 --arch arm --variant v7
+      - docker manifest push hackerh/wakeonlan:latest
 
     - stage: build
       name: "push tagged image"
@@ -29,6 +92,42 @@ jobs:
       services:
         - docker
       script:
-      - docker build -t hackerh/wakeonlan:"${TRAVIS_TAG}" .
       - echo "${DOCKER_PASSWORD}" | docker login -u "${DOCKER_USERNAME}" --password-stdin
+      - docker run --privileged linuxkit/binfmt:v0.6
+      - docker run -d --privileged -p 1337:1337 --name buildkit moby/buildkit:latest --addr tcp://0.0.0.0:1337 --oci-worker-platform linux/amd64 --oci-worker-platform linux/arm/v7
+      - docker cp buildkit:/usr/bin/buildctl .
+      - export BUILDKIT_HOST=tcp://0.0.0.0:1337
+      - |
+        ./buildctl build --frontend dockerfile.v0 \
+        --frontend-opt platform=linux/arm/v7 \
+        --frontend-opt filename=./Dockerfile.armv7 \
+        --exporter image \
+        --exporter-opt name=docker.io/hackerh/wakeonlan:"${TRAVIS_TAG}"-armv7 \
+        --exporter-opt push=false \
+        --local dockerfile=. \
+        --local context=.
+      - |
+        ./buildctl build --frontend dockerfile.v0 \
+        --frontend-opt platform=linux/amd64 \
+        --frontend-opt filename=./Dockerfile.amd64 \
+        --exporter image \
+        --exporter-opt name=docker.io/hackerh/wakeonlan:"${TRAVIS_TAG}"-amd64 \
+        --exporter-opt push=true \
+        --local dockerfile=. \
+        --local context=.
+      - export DOCKER_CLI_EXPERIMENTAL=enabled
+      - |
+        docker manifest create hackerh/wakeonlan:"${TRAVIS_TAG}" \
+        hackerh/wakeonlan:"${TRAVIS_TAG}"-amd64 \
+        hackerh/wakeonlan:"${TRAVIS_TAG}"-armv7
+      - docker manifest annotate hackerh/wakeonlan:"${TRAVIS_TAG}" hackerh/wakeonlan:"${TRAVIS_TAG}"-amd64 --arch amd64
+      - docker manifest annotate hackerh/wakeonlan:"${TRAVIS_TAG}" hackerh/wakeonlan:"${TRAVIS_TAG}"-armv7 --arch arm --variant v7
+      - docker manifest push hackerh/wakeonlan:"${TRAVIS_TAG}"
+
+      - docker build -f Dockerfile.amd64 -t hackerh/wakeonlan:arm32v6-"${TRAVIS_TAG}" .
+      - docker build -f Dockerfile.arm32v6 -t hackerh/wakeonlan:amd64-"${TRAVIS_TAG}" .
+      - docker tag hackerh/wakeonlan:arm32v6-"${TRAVIS_TAG}" hackerh/wakeonlan:"${TRAVIS_TAG}"
+      - echo "${DOCKER_PASSWORD}" | docker login -u "${DOCKER_USERNAME}" --password-stdin
+      - docker push hackerh/wakeonlan:amd64-"${TRAVIS_TAG}"
+      - docker push hackerh/wakeonlan:arm32v6-"${TRAVIS_TAG}"
       - docker push hackerh/wakeonlan:"${TRAVIS_TAG}"
