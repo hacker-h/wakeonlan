@@ -5,13 +5,16 @@ This is a simple python alpine based docker image with the wakeonlan tool instal
 
 # Usage
 ```
-docker run hackerh/wakeonlan wakeonlan -i <BROADCAST_IP> -p <PORT> <MAC_ADDRESS>
+docker run --net=host hackerh/wakeonlan wakeonlan -i <BROADCAST_IP> -p <PORT> <MAC_ADDRESS>
 ```
 
 # Example Usage
 ```
-docker run hackerh/wakeonlan wakeonlan -i 192.168.0.255 -p 9 25:3E:BF:3E:28:D9
+docker run --net=host hackerh/wakeonlan wakeonlan -i 192.168.0.255 -p 9 25:3E:BF:3E:28:D9
 ```
+
+# Notice
+Attaching `--net=host` for the container is mandatory, as WOL packets (layer 2) can't pass the docker network bridge.
 
 # References
 pipeline code:
