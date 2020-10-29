@@ -1,2 +1,2 @@
-FROM arm32v6/python:3.8-alpine
+FROM arm32v6/python:3.9-alpine
 RUN pip3 install wakeonlan
